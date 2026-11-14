@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Real or Screenshot?</title>
+<style>
+  body { font-family: Georgia, serif; background: #f4efe3; color: #2b2b2b; max-width: 620px; margin: 0 auto; padding: 20px; line-height: 1.45; }
+  h1 { margin-bottom: 4px; }
+  h2 { margin-top: 36px; border-bottom: 2px dashed #2f6b3a; padding-bottom: 4px; }
+  .sub { margin-top: 0; color: #666; }
+  fieldset { border: 2px solid #2f6b3a; border-radius: 8px; background: #fffdf6; }
+  label { display: block; padding: 6px 0; cursor: pointer; }
+  button { font: inherit; padding: 8px 14px; margin: 4px 6px 4px 0; border: 2px solid #2f6b3a; background: #fff; border-radius: 8px; cursor: pointer; }
+  button:hover:not(:disabled) { background: #dff0d8; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button:focus-visible, #verdict:focus-visible, #reveal:focus-visible, label:focus-within, #sortOut:focus-visible, textarea:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid #e08a00; outline-offset: 2px; }
+  #verdict { margin-top: 12px; padding: 16px; border: 2px solid #2f6b3a; border-radius: 10px; background: #fff; cursor: pointer; min-height: 60px; }
+  #verdict .hint { color: #777; font-size: 0.85em; }
+  .claim { background: #fff; border: 2px solid #333; border-radius: 10px; padding: 14px; margin: 10px 0; }
+  .claim .tag { font-size: 0.8em; color: #777; }
+  #reveal { margin-top: 10px; padding: 12px; border-radius: 10px; border: 2px solid #999; background: #fff; min-height: 24px; }
+  #reveal.right { border-color: #2f6b3a; background: #e6f4e2; }
+  #reveal.wrong { border-color: #b0402a; background: #fbe7e1; }
+  #score { font-size: 0.9em; color: #555; }
+  textarea { width: 100%; box-sizing: border-box; font-family: monospace; font-size: 0.85em; padding: 8px; border: 2px solid #2f6b3a; border-radius: 8px; background: #fffdf6; }
+  select { font: inherit; padding: 6px; border: 2px solid #2f6b3a; border-radius: 8px; background: #fff; }
+  #sortOut { margin-top: 10px; padding: 12px; border: 2px solid #999; border-radius: 10px; background: #fff; min-height: 24px; }
+  #sortOut h3 { margin: 10px 0 2px; font-size: 1em; text-transform: capitalize; }
+  #sortOut ul { margin: 0; padding-left: 20px; }
+  #sortOut .bad { color: #b0402a; }
+  #sortOut .ok { color: #2f6b3a; font-weight: bold; }
+  #catCanvas { width: 100%; height: auto; background: #fffdf6; border: 2px solid #2f6b3a; border-radius: 10px; display: block; }
+  input[type=range] { width: 100%; }
+  .row { display: inline-block; margin-right: 16px; }
+  #catNote { margin-top: 8px; font-size: 0.95em; }
+</style>
+</head>
+<body>
+<h1>Real or Screenshot?</h1>
+<p class="sub">Somebody says they found a hack. Is it real, or just a picture?</p>
+
+<h2>The checklist</h2>
+<fieldset>
+  <legend>Tick what's true about the claim</legend>
+  <label><input type="checkbox" class="tick"> There's a link I can actually open</label>
+  <label><input type="checkbox" class="tick"> A second place reports it too</label>
+  <label><input type="checkbox" class="tick"> Someone shows the steps, not just the result</label>
+  <label><input type="checkbox" class="tick"> The picture has no odd fonts or cropped edges</label>
+</fieldset>
+<button id="verdictBtn">Give me the verdict</button>
+<div id="verdict" tabindex="0" role="button" aria-live="polite" aria-label="Verdict card. Press Enter or Space to flip.">
+  <span class="hint">Tick some boxes, then press the button.</span>
+</div>
+
+<h2>The guessing game</h2>
+<p id="score">Round 1 of 10</p>
+<div class="claim" id="claim"></div>
+<div>
+  <button id="btnReal">Real</button>
+  <button id="btnShot">Screenshot</button>
+</div>
+<div id="reveal" tabindex="-1" aria-live="polite">Pick one and the answer shows up here.</div>
+<button id="nextBtn" disabled>Next round</button>
+
+<h2>The sketchbook sorter</h2>
+<p class="sub">One page per line: date | subject | title. Dates look like 2024-03-09.</p>
+<label for="pageList">My pages</label>
+<textarea id="pageList" rows="12"></textarea>
+<p>
+  <label for="sortMode" style="display:inline">Sort by </label>
+  <select id="sortMode">
+    <option value="subject">Subject, then date</option>
+    <option value="date">Date, then subject</option>
+  </select>
+  <button id="sortBtn">Sort my pages</button>
+</p>
+<div id="sortOut" tabindex="-1" aria-live="polite">Press the button and the sorted pages show up here.</div>
+
+<h2>Stripes to spots</h2>
+<p class="sub">A toy for seeing the idea: a Spotted gene breaks stripes up. It is not real genetics, just a picture of the idea.</p>
+<canvas id="catCanvas" width="600" height="300" role="img" aria-label="A cat outline covered in stripe bands that break into spots or rosettes."></canvas>
+<fieldset>
+  <legend>Spotted gene copies</legend>
+  <label style="display:inline;margin-right:16px"><input type="radio" name="copies" value="1" checked> One copy</label>
+  <label style="display:inline"><input type="radio" name="copies" value="2"> Two copies</label>
+</fieldset>
+<p>
+  <label for="breakAmt">How much the stripes break: <span id="breakVal">50</span>%</label>
+  <input type="range" id="breakAmt" min="0" max="100" value="50">
+  <label for="markSize">Mark size: <span id="sizeVal">6</span></label>
+  <input type="range" id="markSize" min="3" max="9" value="6">
+</p>
+<div id="catNote" aria-live="polite"></div>
+
+<script>
+// ---------- checklist + verdict ----------
+var verdicts = [
+  { title: "Somebody posted a picture", why: "Nothing checks out. A picture is all this is." },
+  { title: "Doubtful", why: "One good sign isn't enough to trust it." },
+  { title: "Could go either way", why: "Half the signs are there. Look for the steps before you try it." },
+  { title: "Likely real", why: "Most signs are there. Still worth a careful try." },
+  { title: "Probably real", why: "Every sign is there. Nice." }
+];
+var ticks = document.querySelectorAll(".tick");
+var verdictEl = document.getElementById("verdict");
+var flipped = false;
+var currentVerdict = null;
+
+function showVerdict() {
+  if (!currentVerdict) return;
+  if (flipped) {
+    verdictEl.innerHTML = "<strong>Why:</strong> " + currentVerdict.why + '<br><span class="hint">Enter or Space to flip back</span>';
+  } else {
+    verdictEl.innerHTML = "<strong>" + currentVerdict.title + '</strong><br><span class="hint">Enter or Space to see why</span>';
+  }
+}
+document.getElementById("verdictBtn").addEventListener("click", function () {
+  var n = 0;
+  for (var i = 0; i < ticks.length; i++) if (ticks[i].checked) n++;
+  currentVerdict = verdicts[n];
+  flipped = false;
+  showVerdict();
+});
+function flip() {
+  if (!currentVerdict) return;
+  flipped = !flipped;
+  showVerdict();
+}
+verdictEl.addEventListener("click", flip);
+verdictEl.addEventListener("keydown", function (e) {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    flip();
+  }
+});
+
+// ---------- guessing game ----------
+var rounds = [
+  { text: "A post shows a game menu with 'Infinite coins' ticked. The font on that line is different from the rest of the menu.", real: false,
+    why: "A mismatched font on just one line usually means someone typed it in." },
+  { text: "A patch note on the game's own site lists a 'skip intro' button that was hidden in settings. It has a date and a version number.", real: true,
+    why: "It comes from the maker, and it has a date and a version you can check." },
+  { text: "A video shows a free gift card code working. The video is 4 seconds long and the cart total is cropped out.", real: false,
+    why: "Four seconds with the total cut off hides exactly the part you'd need to see." },
+  { text: "Three different forum users post the same keyboard shortcut for a photo app, each with their own screen recording.", real: true,
+    why: "Different people, different recordings, same result. That's hard to fake by accident." },
+  { text: "A tweet says 'Hold the button for ten seconds to double your phone's battery'. No steps, just a before and after picture.", real: false,
+    why: "Before and after with no steps is the classic picture-only claim." },
+  { text: "A friend sends a step-by-step for hiding a folder on a laptop. You follow it and the folder vanishes.", real: true,
+    why: "You tried it yourself and it worked. That beats any picture." },
+  { text: "A screenshot of a chat shows a shop agreeing to a 90% discount. The chat bubbles are slightly different shades of green.", real: false,
+    why: "Uneven bubble colours are a sign of an edited chat." },
+  { text: "A school's IT page explains a hidden shortcut to split the screen in two. It links to the exact settings page.", real: true,
+    why: "It's from a source that runs the system and it links to the real settings." },
+  { text: "A post says 'Type this code in the search bar for secret levels'. The only proof is a picture of a level with no name or number.", real: false,
+    why: "No name, no number, nothing to check. Just a nice picture." },
+  { text: "A tutorial shows a trick to rename many files at once. The comments are full of people saying it worked, with their own examples.", real: true,
+    why: "Lots of people reporting their own results is a good sign." }
+];
+
+function shuffle(a) {
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+var order, idx, score, answered;
+var claimEl = document.getElementById("claim");
+var scoreEl = document.getElementById("score");
+var revealEl = document.getElementById("reveal");
+var btnReal = document.getElementById("btnReal");
+var btnShot = document.getElementById("btnShot");
+var nextBtn = document.getElementById("nextBtn");
+
+function startGame() {
+  order = shuffle(rounds.slice());
+  idx = 0;
+  score = 0;
+  showRound();
+}
+
+function showRound() {
+  answered = false;
+  var r = order[idx];
+  claimEl.innerHTML = '<span class="tag">Claim ' + (idx + 1) + '</span><br>' + r.text;
+  scoreEl.textContent = "Round " + (idx + 1) + " of " + order.length + " | Score: " + score;
+  btnReal.disabled = false;
+  btnShot.disabled = false;
+  nextBtn.disabled = true;
+  nextBtn.textContent = (idx === order.length - 1) ? "See my score" : "Next round";
+  revealEl.className = "";
+  revealEl.textContent = "Pick one and the answer shows up here.";
+}
+
+function guess(saidReal) {
+  if (answered) return;
+  answered = true;
+  var r = order[idx];
+  var correct = (saidReal === r.real);
+  if (correct) score++;
+  btnReal.disabled = true;
+  btnShot.disabled = true;
+  nextBtn.disabled = false;
+  var answer = r.real ? "Real" : "Screenshot";
+  revealEl.className = correct ? "right" : "wrong";
+  revealEl.innerHTML = "<strong>" + (correct ? "Right." : "Not quite.") + " It was: " + answer + ".</strong><br>" + r.why;
+  scoreEl.textContent = "Round " + (idx + 1) + " of " + order.length + " | Score: " + score;
+  revealEl.focus();
+}
+
+function finish() {
+  var msg;
+  if (score >= 9) msg = "Very sharp eyes.";
+  else if (score >= 6) msg = "Pretty good. A couple got past you.";
+  else msg = "Tricky, right? Try the checklist next time.";
+  claimEl.innerHTML = "<strong>All done.</strong>";
+  scoreEl.textContent = "Final score: " + score + " of " + order.length;
+  btnReal.disabled = true;
+  btnShot.disabled = true;
+  revealEl.className = "";
+  revealEl.innerHTML = "<strong>You got " + score + " out of " + order.length + ".</strong><br>" + msg;
+  nextBtn.textContent = "Play again";
+  nextBtn.disabled = false;
+  idx = order.length;
+  revealEl.focus();
+}
+
+btnReal.addEventListener("click", function () { guess(true); });
+btnShot.addEventListener("click", function () { guess(false); });
+nextBtn.addEventListener("click", function () {
+  if (idx >= order.length) {
+    startGame();
+    return;
+  }
+  if (idx === order.length - 1) {
+    finish();
+    return;
+  }
+  idx++;
+  showRound();
+  claimEl.setAttribute("tabindex", "-1");
+  claimEl.focus();
+});
+
+startGame();
+
+// ---------- sketchbook sorter ----------
+var pageListEl = document.getElementById("pageList");
+var sortModeEl = document.getElementById("sortMode");
+var sortOutEl = document.getElementById("sortOut");
+
+pageListEl.value = [
+  "2024-03-09 | Eren | Eren from behind, cloak blowing",
+  "2024-01-14 | food | Noodle bowl at Del Taco",
+  "2024-02-02 | Pigeon | Pigeon detective with a tiny hat",
+  "2024-03-01 | Eren | Eren hands, took three tries",
+  "2024-01-30 | town | Mabel's shop window",
+  "2024-02-20 | Food | Fridge with the Little Caesars magnet",
+  "2024-03-15 | town | Dallas at the Thrift Store",
+  "last tuesday | cat | oops",
+  "2024-02-11 | Pigeon",
+  "2024-01-05 | self | Me in the ODM gear, standing up straight"
+].join("\n");
+
+function parsePages(text) {
+  var lines = text.split("\n");
+  var pages = [];
+  var bad = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (line === "") continue;
+    var parts = line.split("|");
+    var date = parts[0] ? parts[0].trim() : "";
+    var subject = parts[1] ? parts[1].trim().toLowerCase() : "";
+    var title = parts[2] ? parts[2].trim() : "";
+    var dateOk = /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(new Date(date).getTime());
+    if (!dateOk || subject === "" || title === "") {
+      bad.push({ n: i + 1, text: line });
+    } else {
+      pages.push({ date: date, subject: subject, title: title });
+    }
+  }
+  return { pages: pages, bad: bad };
+}
+
+function comparePages(a, b, mode) {
+  var first = mode === "date" ? "date" : "subject";
+  var second = mode === "date" ? "subject" : "date";
+  if (a[first] < b[first]) return -1;
+  if (a[first] > b[first]) return 1;
+  if (a[second] < b[second]) return -1;
+  if (a[second] > b[second]) return 1;
+  return 0;
+}
+
+function sortPages(pages, mode) {
+  return pages.slice().sort(function (a, b) { return comparePages(a, b, mode); });
+}
+
+function isSorted(pages, mode) {
+  for (var i = 1; i < pages.length; i++) {
+    if (comparePages(pages[i - 1], pages[i], mode) > 0) return false;
+  }
+  return true;
+}
+
+function addLine(list, text) {
+  var li = document.createElement("li");
+  li.textContent = text;
+  list.appendChild(li);
+}
+
+function renderSorted() {
+  var mode = sortModeEl.value === "date" ? "date" : "subject";
+  var parsed = parsePages(pageListEl.value);
+  var sorted = sortPages(parsed.pages, mode);
+  sortOutEl.innerHTML = "";
+
+  var summary = document.createElement("p");
+  summary.textContent = sorted.length + " pages sorted, " + parsed.bad.length + " lines skipped.";
+  sortOutEl.appendChild(summary);
+
+  if (mode === "subject") {
+    var lastSubject = null;
+    var list = null;
+    for (var i = 0; i < sorted.length; i++) {
+      var p = sorted[i];
+      if (p.subject !== lastSubject) {
+        var h = document.createElement("h3");
+        h.textContent = p.subject;
+        sortOutEl.appendChild(h);
+        list = document.createElement("ul");
+        sortOutEl.appendChild(list);
+        lastSubject = p.subject;
+      }
+      addLine(list, p.date + " : " + p.title);
+    }
+  } else {
+    var flat = document.createElement("ul");
+    for (var j = 0; j < sorted.length; j++) {
+      addLine(flat, sorted[j].date + " : " + sorted[j].subject + " : " + sorted[j].title);
+    }
+    sortOutEl.appendChild(flat);
+  }
+
+  if (parsed.bad.length > 0) {
+    var badHead = document.createElement("p");
+    badHead.className = "bad";
+    badHead.textContent = "Skipped (needs a real date, a subject and a title):";
+    sortOutEl.appendChild(badHead);
+    var badList = document.createElement("ul");
+    for (var k = 0; k < parsed.bad.length; k++) {
+      addLine(badList, "line " + parsed.bad[k].n + ": " + parsed.bad[k].text);
+    }
+    sortOutEl.appendChild(badList);
+  }
+
+  var check = document.createElement("p");
+  if (isSorted(sorted, mode)) {
+    check.className = "ok";
+    check.textContent = "Check: every page is in order.";
+  } else {
+    check.className = "bad";
+    check.textContent = "Check failed: something is out of order.";
+  }
+  sortOutEl.appendChild(check);
+  sortOutEl.focus();
+}
+
+document.getElementById("sortBtn").addEventListener("click", renderSorted);
+
+// ---------- stripes to spots ----------
+var catCanvas = document.getElementById("catCanvas");
+var catCtx = catCanvas.getContext ? catCanvas.getContext("2d") : null;
+var breakEl = document.getElementById("breakAmt");
+var sizeEl = document.getElementById("markSize");
+var breakValEl = document.getElementById("breakVal");
+var sizeValEl = document.getElementById("sizeVal");
+var catNoteEl = document.getElementById("catNote");
+var copyRadios = document.querySelectorAll("input[name=copies]");
+var lastCatState = "";
+
+// same cell always gives the same number, so dragging a slider never flickers
+function cellRand(i, j) {
+  var s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+function getCopies() {
+  for (var i = 0; i < copyRadios.length; i++) {
+    if (copyRadios[i].checked) return copyRadios[i].value === "2" ? 2 : 1;
+  }
+  return 1;
+}
+
+function catShape() {
+  var p = new Path2D();
+  p.ellipse(280, 170, 175, 70, 0, 0, Math.PI * 2);   // body
+  p.moveTo(520, 120);
+  p.arc(480, 120, 48, 0, Math.PI * 2);                // head
+  p.moveTo(445, 90); p.lineTo(450, 40); p.lineTo(485, 78); p.closePath();   // ears
+  p.moveTo(490, 78); p.lineTo(515, 42); p.lineTo(522, 98); p.closePath();
+  p.rect(150, 210, 30, 65);                           // legs
+  p.rect(200, 215, 30, 60);
+  p.rect(340, 215, 30, 60);
+  p.rect(390, 210, 30, 65);
+  p.ellipse(100, 130, 16, 75, 0.6, 0, Math.PI * 2);   // tail
+  return p;
+}
+
+function drawCat() {
+  if (!catCtx) return;
+  var copies = getCopies();
+  var brk = Number(breakEl.value) / 100;
+  var size = Number(sizeEl.value);
+  breakValEl.textContent = breakEl.value;
+  sizeValEl.textContent = size;
+
+  var c = catCtx;
+  c.clearRect(0, 0, 600, 300);
+  var shape = catShape();
+  c.fillStyle = "#e9c88f";
+  c.fill(shape);
+
+  c.save();
+  c.clip(shape);
+  var stripes = 0, spots = 0;
+  for (var i = 0; i < 24; i++) {
+    var x = 50 + i * 20;
+    for (var j = 0; j < 14; j++) {
+      var y = 30 + j * 17;
+      if (cellRand(i, j) < brk) {
+        // the stripe broke here: leave a mark
+        var ox = (cellRand(j, i) - 0.5) * 6;
+        spots++;
+        c.beginPath();
+        c.arc(x + ox, y + 8, size, 0, Math.PI * 2);
+        if (copies === 2) {
+          c.fillStyle = "#f3dcb0";
+          c.fill();
+          c.lineWidth = 3;
+          c.strokeStyle = "#4a2d14";
+          c.stroke();
+        } else {
+          c.fillStyle = "#4a2d14";
+          c.fill();
+        }
+      } else {
+        stripes++;
+        c.fillStyle = "#4a2d14";
+        c.fillRect(x - 4, y, 8, 15);
+      }
+    }
+  }
+  c.restore();
+
+  c.lineWidth = 3;
+  c.strokeStyle = "#2b2b2b";
+  c.stroke(shape);
+  c.fillStyle = "#2b2b2b";
+  c.beginPath(); c.arc(465, 115, 4, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(495, 115, 4, 0, Math.PI * 2); c.fill();
+
+  var word;
+  if (brk === 0) word = "plain stripes";
+  else if (brk < 0.35) word = "broken stripes";
+  else if (brk < 0.75) word = copies === 2 ? "a mix of rings and stripes" : "a mix of spots and stripes";
+  else word = copies === 2 ? "mostly rosettes" : "mostly spots";
+  var state = copies + "|" + word;
+  if (state !== lastCatState) {
+    lastCatState = state;
+    catNoteEl.textContent = (copies === 1 ? "One copy" : "Two copies") + ": " + word + ".";
+  }
+}
+
+breakEl.addEventListener("input", drawCat);
+sizeEl.addEventListener("input", drawCat);
+for (var rIdx = 0; rIdx < copyRadios.length; rIdx++) copyRadios[rIdx].addEventListener("change", drawCat);
+drawCat();
+</script>
+</body>
+</html>
